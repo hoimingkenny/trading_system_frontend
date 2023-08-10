@@ -14,9 +14,12 @@ import axios from 'axios';
 // url: target
 export const reqRealEndAsync = (method, baseUrl,
                                 url, params, callback) => {
+
+    params.token = sessionStorage.getItem('token');
+
     return axios({
         timeout: 5000,
-        baseUrl: baseUrl,
+        baseURL: baseUrl,
         url: url,
         headers: {
             'Content-type': 'application/x-www-form-urlencoded'
@@ -32,7 +35,7 @@ export const reqRealEndAsync = (method, baseUrl,
         // {code: 0 -- Success; code: 1/2/other -- Fail, message: , data:{{}}}
 
         if (result.code === 1){
-            // verification failed
+            // verification failed -> redirect
             router.replace({
                 path: "login",
                 query: {
@@ -40,15 +43,16 @@ export const reqRealEndAsync = (method, baseUrl,
                 }
             });
         } else if (result.code === 0) {
-            // callback success
+            // success -> callback
             if (callback !== undefined) {
                 callback(result.code, result.message, result.data);
+                console.log(result.data);
             }
         } else {
             console.error(result);
         }
-    })
-}
+    });
+};
 
 // common method (without callback)
 export const reqRealEnd = (method, baseUrl,

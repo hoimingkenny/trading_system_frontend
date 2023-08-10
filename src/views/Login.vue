@@ -3,7 +3,7 @@
   <div class="login-wrap">
     <!--    第二步，增加element ui    -->
     <!--    第三步   -->
-    <el-form class="login-container" :model="ruleForm" :rules="rules" ref="ruleForm">>
+    <el-form class="login-container" :model="ruleForm" :rules="rules" ref="ruleForm">
       <h3 class="title">Login</h3>
       <el-form-item prop="uid">
         <el-input v-model="ruleForm.uid" type="text" placeholder="Username"></el-input>
@@ -21,13 +21,12 @@
           </el-form-item>
         </el-col>
         <!-- Verification Image -->
-        <el-col :span="12">
-          <img :src="codeImg" />
+        <el-col :span="12" style="text-align: right">
+          <img :src="codeImg" @click="getCode"/>
         </el-col>
       </el-row>
       <el-form-item>
-        <el-button type="primary" style="width:100%;"
-        >
+        <el-button type="primary" style="width:100%;">
           Login
         </el-button>
       </el-form-item>
@@ -38,7 +37,7 @@
 
 <script>
   import { queryCaptcha, login } from "@/api/loginApi";
-
+  import encryptMD5 from 'js-md5';
 
   export default {
     name: "Login",
@@ -61,6 +60,68 @@
         },
         // 4. Block repeated submission
         logining: false
+      }
+    },
+    // load immediately
+    created() {
+      this.getCode();
+    },
+    methods:{
+      // {id, imageBase64}
+      captchaCallback(code, msg, captchaData) {
+        this.ruleForm.captchaId = captchaData.id;
+        this.codeImg = captchaData.imageBase64;
+      },
+
+      // common.js (網絡交互）<-- logic.js (Business Logic) <-- Vue
+      // get verification code
+      getCode() {
+        queryCaptcha(this.captchaCallback);
+      },
+
+      // Login Callback
+      loginCallback(code, msg, acc) {
+        if (code === 2) {
+          //登录失败
+          this.$message.error(msg);
+          this.logining = false;
+          this.getCode();
+        } else {
+          // Login Success: uid & token
+          sessionStorage.setItem("uid", acc.uid);
+          sessionStorage.setItem("token", acc.token);
+          //显示上次成功登录时间
+          if (acc.lastLoginDate.length > 1) {
+            this.$message.success("登录成功,上次登录时间:"
+                + acc.lastLoginDate + " " + acc.lastLoginTime);
+          } else {
+            this.$message.success("登录成功");
+          }
+          // Redirect to Main page with 1 second transition
+          setTimeout(() => {
+            this.logining = false;
+            this.$router.push({path : '/dashboard'});
+          }, 1000);
+        }
+      },
+
+
+      submitForm(formName) {
+        this.$refs[formName].validate(valid => {
+          if (valid) {
+            // can't submit multiple times
+            this.logining = true;
+            login({
+              uid: this.ruleForm.uid,
+              password: encryptMD5(this.ruleForm.password),
+              captcha: this.ruleForm.captcha,
+              captchaId: this.ruleForm.captchaId,
+            }, this.loginCallback);
+          } else {
+            this.$message.error('用户名/密码/验证码不能为空');
+            this.logining = false;
+          }
+        })
       }
     }
   }
